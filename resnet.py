@@ -3,7 +3,13 @@ import jax.numpy as jnp
 from flax import linen as nn
 import optax
 
-class MLP(nn.Module):
+class ResNetBlock(nn.Module):
+    features: int
+
+    def __call__(self, x):
+        pass
+
+class MLPBlock(nn.Module):
     features: tuple
 
     @nn.compact
@@ -13,7 +19,31 @@ class MLP(nn.Module):
             x = nn.relu(x)
         x = nn.Dense(self.features[-1])(x)
         return x
-    
+
+class ResNetBlock(nn.Module):
+    features: tuple
+
+    @nn.compact
+    def __call__(self, x):
+        for i, feat in enumerate(self.features):
+            if i == 0:
+                y = nn.Dense(feat)(x)
+            else:
+                y = nn.Dense(feat)(y)
+            y = nn.relu(x)
+        return y + x
+
+class ResNet(nn.Module):
+    resnet_blocks: tuple
+    mlp_features: tuple
+
+    @nn.compact
+    def __call__(self, x):
+        for block in self.resnet_blocks:
+            x = ResNetBlock(features=block)(x)
+        x = MLPBlock(features=self.mlp_features)(x)
+        return x
+
 def train():
 
     # set hyperparameters
@@ -25,7 +55,9 @@ def train():
     n_out = 1
 
     # initialise model and optimiser
-    model = MLP(features=(32, 32, n_out))
+    resnet_blocks = ((32, 32),(32, 32))
+    mlp_features = (32, 32, n_out)
+    model = ResNet(resnet_blocks=resnet_blocks, mlp_features=mlp_features)
     optimiser = optax.adam(lr)
     params = model.init(key, jnp.empty((1, n_in)))
     opt_state = optimiser.init(params)
