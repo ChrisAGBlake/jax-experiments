@@ -58,7 +58,10 @@ def inference():
     # run model
     output = model.apply(params, tokens)
     print('output:', output.shape)
-    print(output)
+
+    # get predicted tokens
+    predicted_tokens = jnp.argmax(output, axis=-1)
+    print('predicted tokens:', predicted_tokens)
 
 if __name__ == '__main__':
     inference()
