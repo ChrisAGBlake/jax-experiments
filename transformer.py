@@ -63,5 +63,46 @@ def inference():
     predicted_tokens = jnp.argmax(output, axis=-1)
     print('predicted tokens:', predicted_tokens)
 
+def train():
+
+    # set hyperparameters
+    key = jax.random.PRNGKey(0)
+    lr = 1e-4
+    batch_size = 1
+    n_epochs = 10
+    context_length = 128
+
+    # setup model
+    num_layers = 2
+    features = 32
+    vocab_size = 100
+    model = DecoderOnlyTransformer(num_layers=num_layers, features=features, vocab_size=vocab_size)
+
+    # load tiny shakespere dataset
+    with open('data/tiny_shakespeare.txt', 'r') as f:
+        text = f.read()
+        text = text.lower()
+
+    # tokenise the text, 1 token per character to keep it simple
+    all_tokens = sorted(list(set(text)))
+    token_to_idx = {token: idx for idx, token in enumerate(all_tokens)}
+    idx_to_token = {idx: token for token, idx in token_to_idx.items()}
+    tokens = jnp.array([token_to_idx[token] for token in text], dtype=jnp.int32)
+
+    # generate training data
+    x = []
+    y = []
+    for i in range(0, len(tokens) - context_length - 1):
+        x.append(tokens[i:i+context_length])
+        y.append(tokens[i+1:i+context_length+1])
+    x = jnp.array(x)
+    y = jnp.array(y)
+
+    # define the loss function
+
+    # define the update step
+
+    # train for n epochs
+    
 if __name__ == '__main__':
     inference()
