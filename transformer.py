@@ -83,24 +83,26 @@ def train():
     lr = 1e-4
     batch_size = 1
     n_epochs = 10
-    context_length = 32
+    context_length = 128
 
     # setup model
     num_layers = 2
-    features = 16
+    features = 32
     vocab_size = len(unique_tokens)
-    num_heads = 2
+    num_heads = 8
     model = DecoderOnlyTransformer(num_layers=num_layers, features=features, vocab_size=vocab_size, num_heads=num_heads)
 
     # generate training data
+    stride = 10
     x = []
     y = []
-    for i in range(0, len(tokens) - context_length - 1):
+    for i in range(0, len(tokens) - context_length - 1, stride):
         x.append(tokens[i:i+context_length])
         y.append(tokens[i+1:i+context_length+1])
     x = jnp.array(x)
     y = jnp.array(y)
     data_sz = x.shape[0]
+    print('data size:', data_sz)
 
     # setup the optimiser
     optimiser = optax.adam(lr)
@@ -109,8 +111,15 @@ def train():
 
     # define the loss function - cross entropy
     def loss_fn(params, inputs, labels):
+        # get predicted logits
         logits = model.apply(params, inputs)
-        return -jnp.mean(jnp.sum(labels * jax.nn.log_softmax(logits), axis=-1))
+
+        # convert labels to one-hot
+        labels_one_hot = jax.nn.one_hot(labels, vocab_size)
+
+        # calculate cross entropy loss
+        ce_loss = -jnp.mean(jnp.sum(labels_one_hot * jax.nn.log_softmax(logits), axis=-1))
+        return ce_loss
 
     # define the update step
     @jax.jit
@@ -127,7 +136,6 @@ def train():
         while j < data_sz:
             e = min(data_sz, j+batch_size)
             params, opt_state, loss = step(params, opt_state, x[j:e, :], y[j:e, :])
-            print(loss)
             l += loss
             j = e
         l /= int(data_sz / batch_size)
