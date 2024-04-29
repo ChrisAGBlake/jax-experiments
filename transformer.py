@@ -107,6 +107,7 @@ def train():
     # setup the optimiser
     optimiser = optax.adam(lr)
     params = model.init(key, jnp.empty((1, context_length), dtype=jnp.int32))
+    params = jax.device_put(params)
     opt_state = optimiser.init(params)
 
     # define the loss function - cross entropy
@@ -135,7 +136,9 @@ def train():
         l = 0
         while j < data_sz:
             e = min(data_sz, j+batch_size)
-            params, opt_state, loss = step(params, opt_state, x[j:e, :], y[j:e, :])
+            inputs = jax.device_put(x[j:e, :])
+            labels = jax.device_put(y[j:e, :])
+            params, opt_state, loss = step(params, opt_state, inputs, labels)
             l += loss
             j = e
         l /= int(data_sz / batch_size)
