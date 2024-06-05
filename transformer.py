@@ -2,6 +2,31 @@ import jax
 import jax.numpy as jnp
 from flax import linen as nn
 import optax
+import pickle
+import random
+
+# load tiny shakespere dataset
+with open('data/tiny_shakespere.txt', 'r') as f:
+    text = f.read()
+    text = text.lower()
+
+# tokenise the text, 1 token per character to keep it simple
+unique_tokens = sorted(list(set(text)))
+token_to_idx = {token: idx for idx, token in enumerate(unique_tokens)}
+idx_to_token = {idx: token for token, idx in token_to_idx.items()}
+tokens = jnp.array([token_to_idx[token] for token in text], dtype=jnp.int32)
+
+# set hyperparameters
+key = jax.random.PRNGKey(0)
+lr = 1e-3
+batch_size = 1
+n_epochs = 1
+context_length = 32
+stride = 10
+num_layers = 2
+features = 32
+vocab_size = len(unique_tokens)
+num_heads = 8
 
 class TransformerBlock(nn.Module):
     features: int
@@ -43,57 +68,34 @@ class DecoderOnlyTransformer(nn.Module):
 def inference():
 
     # setup model
-    num_layers = 2
-    features = 32
-    vocab_size = 100
-    num_heads = 2
     model = DecoderOnlyTransformer(num_layers=num_layers, features=features, vocab_size=vocab_size, num_heads=num_heads)
 
-    # generate random data
-    key = jax.random.PRNGKey(0)
-    tokens = jax.random.randint(key, (1, 20), 0, vocab_size)
-    print('input:', tokens)
+    # load the model params
+    with open('models/model.pkl', 'rb') as f:
+        params = pickle.load(f)
 
-    # initialise model parameters
-    params = model.init(key, tokens)
+    # generate the prompt
+    i = random.randint(0, len(text) - context_length)
+    prompt = text[i:i+context_length]
+    prompt_tokens = jnp.array([[token_to_idx[token] for token in prompt]], dtype=jnp.int32)
 
-    # run model
-    output = model.apply(params, tokens)
-    print('output:', output.shape)
-
-    # get predicted tokens
-    predicted_tokens = jnp.argmax(output, axis=-1)
-    print('predicted tokens:', predicted_tokens)
+    # generate text response
+    gen_text = ''
+    for _ in range(100):
+        output = model.apply(params, prompt_tokens)
+        predicted_token = jnp.argmax(output[0, -1]).astype(jnp.int32) 
+        gen_text += idx_to_token[predicted_token.item()]
+        prompt_tokens = jnp.append(prompt_tokens, predicted_token)
+        prompt_tokens = prompt_tokens[1:]
+    print('prompt:', prompt)
+    print('response:', gen_text)
 
 def train():
 
-    # load tiny shakespere dataset
-    with open('data/tiny_shakespere.txt', 'r') as f:
-        text = f.read()
-        text = text.lower()
-
-    # tokenise the text, 1 token per character to keep it simple
-    unique_tokens = sorted(list(set(text)))
-    token_to_idx = {token: idx for idx, token in enumerate(unique_tokens)}
-    idx_to_token = {idx: token for token, idx in token_to_idx.items()}
-    tokens = jnp.array([token_to_idx[token] for token in text], dtype=jnp.int32)
-
-    # set hyperparameters
-    key = jax.random.PRNGKey(0)
-    lr = 1e-4
-    batch_size = 1
-    n_epochs = 10
-    context_length = 128
-
     # setup model
-    num_layers = 2
-    features = 32
-    vocab_size = len(unique_tokens)
-    num_heads = 8
     model = DecoderOnlyTransformer(num_layers=num_layers, features=features, vocab_size=vocab_size, num_heads=num_heads)
 
     # generate training data
-    stride = 10
     x = []
     y = []
     for i in range(0, len(tokens) - context_length - 1, stride):
@@ -143,8 +145,13 @@ def train():
             j = e
         l /= int(data_sz / batch_size)
         print(f'epoch {i}, loss: {l}')
-    
+
+    # save the model
+    with open('models/model.pkl', 'wb') as f:
+        pickle.dump(params, f)
+
+
 if __name__ == '__main__':
     train()
-    # inference()
+    inference()
     
