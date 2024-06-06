@@ -63,7 +63,7 @@ class DecoderOnlyTransformer(nn.Module):
             x = transformer_block(x, train)
         x = self.mlp(x)
         x = nn.softmax(x)
-        return x
+        return x[:, -1, :]
     
 def inference():
 
@@ -100,7 +100,7 @@ def train():
     y = []
     for i in range(0, len(tokens) - context_length - 1, stride):
         x.append(tokens[i:i+context_length])
-        y.append(tokens[i+1:i+context_length+1])
+        y.append(tokens[i+context_length:i+context_length+1])
     x = jnp.array(x)
     y = jnp.array(y)
     data_sz = x.shape[0]
