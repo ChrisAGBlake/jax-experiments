@@ -19,7 +19,7 @@ tokens = jnp.array([token_to_idx[token] for token in text], dtype=jnp.int32)
 # set hyperparameters
 key = jax.random.PRNGKey(0)
 lr = 1e-3
-batch_size = 1
+batch_size = 32
 n_epochs = 1
 context_length = 32
 stride = 10
