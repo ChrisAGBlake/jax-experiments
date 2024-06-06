@@ -20,7 +20,7 @@ tokens = jnp.array([token_to_idx[token] for token in text], dtype=jnp.int32)
 key = jax.random.PRNGKey(0)
 lr = 1e-3
 batch_size = 32
-n_epochs = 1
+n_epochs = 10
 context_length = 32
 stride = 10
 num_layers = 2
@@ -81,12 +81,13 @@ def inference():
 
     # generate text response
     gen_text = ''
-    for _ in range(100):
+    for _ in range(10):
         output = model.apply(params, prompt_tokens)
-        predicted_token = jnp.argmax(output[0, -1]).astype(jnp.int32) 
-        gen_text += idx_to_token[predicted_token.item()]
-        prompt_tokens = jnp.append(prompt_tokens, predicted_token)
-        prompt_tokens = prompt_tokens[1:]
+        predicted_token = jnp.argmax(output[0]).astype(jnp.int32).item()
+        gen_text += idx_to_token[predicted_token]
+        prompt_tokens = jnp.append(prompt_tokens, predicted_token, axis=1)
+        prompt_tokens = prompt_tokens[:, 1:]
+        print(''.join([idx_to_token[t] for t in prompt_tokens[0, :]]))
     print('prompt:', prompt)
     print('response:', gen_text)
 
